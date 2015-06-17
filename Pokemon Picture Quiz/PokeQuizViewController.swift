@@ -13,6 +13,9 @@ class PokeQuizViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        PokeAPIClient.sharedInstance().getPokemon(700) { (response) in
+            println(response)
+        }
     }
 
 }
