@@ -8,8 +8,10 @@
 
 import Foundation
 import CoreData
+import UIKit
 
 class PokeAPIClient {
+    // Reminder: PokeAPI currently only has 718 listings
 
     var session : NSURLSession
     
@@ -54,7 +56,6 @@ class PokeAPIClient {
         if let image = parsedJSON["image"] as? String, pokemon = parsedJSON["pokemon"] as? NSDictionary {
             let imageURL = "http://pokeapi.co/" + image
             let name = pokemon["name"] as! String
-            
             let response = ["name": name, "imageURL": imageURL]
             completionHandler(response: response)
         } else {
@@ -63,16 +64,43 @@ class PokeAPIClient {
         }
     }
     
-    class func getPhotoImageURLs(photos: NSMutableArray, completionHandler: (response: NSDictionary) -> Void) {
-        var photoArray = [String]()
-        for photo in photos {
-            if let farm = photo["farm"] as? Int, id = photo["id"] as? String, secret = photo["secret"] as? String, server = photo["server"] as? String {
-                let imageURL = "https://farm\(farm).staticflickr.com/\(server)/\(id)_\(secret)_t.jpg"
-                photoArray.append(imageURL)
+    func savePokemon(id: Int, name: String, imageURL: String,  completionHandler: (() -> Void)?) {
+        var newPokemon = NSEntityDescription.insertNewObjectForEntityForName("Pokemon", inManagedObjectContext: sharedContext) as! Pokemon
+        newPokemon.id = id - 1 // sprite url id and pokedex id offset by 1
+        newPokemon.name = name
+        newPokemon.imageURL = imageURL
+        let url = NSURL(string: imageURL)
+        newPokemon.imagePath = url!.lastPathComponent!
+        CoreDataStackManager.sharedInstance().saveContext()
+        
+        // Initiates download of pokemon sprite
+        self.getPokemonImage(imageURL) { (response) in
+            if let data = response {
+                if let pokemonImage = UIImage(data: data) {
+                    newPokemon.image = pokemonImage
+                }
             }
         }
-        let response = ["photoImagePaths": photoArray]
-        completionHandler(response: response)
+        
+        // Runs optional closure
+        if let ch = completionHandler {
+            ch()
+        }
+    }
+    
+    func getPokemonImage(imageURL: String, completionHandler: ((response: NSData?) -> Void)) -> NSURLSessionDataTask {
+        let imageURL = NSURL(string: imageURL)
+        let task = session.dataTaskWithURL(imageURL!) { (data, response, error) in
+            if error != nil {
+                completionHandler(response: nil)
+                return
+            }
+            
+            completionHandler(response: NSData(data: data))
+        }
+        task.resume()
+        
+        return task
     }
     
     class func parseJSONWithCompletionHandler(data: NSData, completionHandler: (result: AnyObject!, error: NSError?) -> Void) {

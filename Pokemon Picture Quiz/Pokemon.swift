@@ -14,6 +14,7 @@ import UIKit
 
 class Pokemon: NSManagedObject {
 
+    @NSManaged var id: Int
     @NSManaged var imageURL: String
     @NSManaged var imagePath: String
     @NSManaged var name: String
