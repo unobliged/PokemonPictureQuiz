@@ -64,7 +64,7 @@ class PokeAPIClient {
         }
     }
     
-    func savePokemon(id: Int, name: String, imageURL: String,  completionHandler: (() -> Void)?) {
+    func savePokemon(id: Int, name: String, imageURL: String,  completionHandler: ((pokemon: Pokemon) -> Void)?) {
         var newPokemon = NSEntityDescription.insertNewObjectForEntityForName("Pokemon", inManagedObjectContext: sharedContext) as! Pokemon
         newPokemon.id = id - 1 // sprite url id and pokedex id offset by 1
         newPokemon.name = name
@@ -84,7 +84,7 @@ class PokeAPIClient {
         
         // Runs optional closure
         if let ch = completionHandler {
-            ch()
+            ch(pokemon: newPokemon)
         }
     }
     

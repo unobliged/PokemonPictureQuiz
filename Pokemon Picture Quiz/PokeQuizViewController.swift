@@ -10,6 +10,14 @@ import UIKit
 import CoreData
 
 class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelegate {
+    
+    @IBOutlet weak var choice1: UIImageView!
+    @IBOutlet weak var choice2: UIImageView!
+    @IBOutlet weak var choice3: UIImageView!
+    @IBOutlet weak var choice4: UIImageView!
+    @IBOutlet weak var pokemonNameLabel: UILabel!
+    
+    var choiceImageViews = [UIImageView]()
 
     var sharedContext: NSManagedObjectContext {
         return CoreDataStackManager.sharedInstance().managedObjectContext!
@@ -28,20 +36,27 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        choiceImageViews = [choice1, choice2, choice3, choice4]
+        for imageView in choiceImageViews {
+            imageView.layer.borderColor = UIColor.blackColor().CGColor
+            imageView.layer.borderWidth = 1
+        }
         fetchedResultsController.delegate = self
-        let num = 700
-        PokeAPIClient.sharedInstance().getPokemon(num) { (response) in
-            println(response)
-            if let name = response["name"] as? String, url = response["imageURL"] as? String {
-//                PokeAPIClient.sharedInstance().savePokemon(name, imageURL: url, completionHandler: nil)
-                PokeAPIClient.sharedInstance().savePokemon(num, name: name, imageURL: url) {
-                    self.fetchedResultsController.performFetch(nil)
-                    println(self.fetchedResultsController.fetchedObjects)
-                    let pokeTest = self.fetchedResultsController.fetchedObjects?.first as! Pokemon
-                    if let newImage = pokeTest.image {
-                        let test = UIImageView(image: newImage)
-                        test.frame = CGRectMake(self.view.frame.size.width / 2, self.view.frame.size.height / 2, 100, 100)
-                        self.view.addSubview(test)
+        
+        self.generateQuiz()
+    }
+    
+    func generateQuiz() {
+        var newQuiz = PokeQuiz()
+        
+        for (index, choice) in enumerate(newQuiz.choices) {
+            PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
+                if let name = response["name"] as? String, url = response["imageURL"] as? String {
+                    PokeAPIClient.sharedInstance().savePokemon(choice, name: name, imageURL: url) { (pokemon) in
+                        println(pokemon.image)
+                        dispatch_async(dispatch_get_main_queue()) {
+                            self.choiceImageViews[index].image = pokemon.image
+                        }
                     }
                 }
             }
