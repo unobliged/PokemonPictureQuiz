@@ -55,7 +55,7 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
                     PokeAPIClient.sharedInstance().savePokemon(choice, name: name, imageURL: url) { (pokemon) in
                         if pokemon.id == newQuiz.answer {
                             dispatch_async(dispatch_get_main_queue()) {
-                                self.pokemonNameLabel.text = pokemon.name.uppercaseString
+                                self.pokemonNameLabel.text = pokemon.name.capitalizedString + "?"
                             }
                         }
                         
