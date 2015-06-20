@@ -24,7 +24,7 @@ class PokeAPIClient {
     }
     
     func getPokemon(id: Int, completionHandler: (response: NSDictionary) -> Void) -> NSURLSessionDataTask {
-        let request = NSMutableURLRequest(URL: NSURL(string: "http://pokeapi.co/api/v1/sprite/\(id)")!)
+        let request = NSMutableURLRequest(URL: NSURL(string: "http://pokeapi.co/api/v1/sprite/\(id + 1)")!) // sprite id and pokedex id are offset by 1 in the API
         let task = session.dataTaskWithRequest(request) { (data, response, error) in
             if error != nil {
                 println(error)
@@ -64,27 +64,22 @@ class PokeAPIClient {
         }
     }
     
-    func savePokemon(id: Int, name: String, imageURL: String,  completionHandler: ((pokemon: Pokemon) -> Void)?) {
+    func savePokemon(id: Int, name: String, imageURL: String,  completionHandler: ((pokemon: Pokemon) -> Void)) {
         var newPokemon = NSEntityDescription.insertNewObjectForEntityForName("Pokemon", inManagedObjectContext: sharedContext) as! Pokemon
-        newPokemon.id = id - 1 // sprite url id and pokedex id offset by 1
+        newPokemon.id = id
         newPokemon.name = name
         newPokemon.imageURL = imageURL
         let url = NSURL(string: imageURL)
         newPokemon.imagePath = url!.lastPathComponent!
         CoreDataStackManager.sharedInstance().saveContext()
-        
-        // Initiates download of pokemon sprite
+      
         self.getPokemonImage(imageURL) { (response) in
             if let data = response {
                 if let pokemonImage = UIImage(data: data) {
                     newPokemon.image = pokemonImage
+                    completionHandler(pokemon: newPokemon)
                 }
             }
-        }
-        
-        // Runs optional closure
-        if let ch = completionHandler {
-            ch(pokemon: newPokemon)
         }
     }
     
