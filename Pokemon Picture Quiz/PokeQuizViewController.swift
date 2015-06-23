@@ -61,6 +61,9 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     func generateQuiz() {
         var newQuiz = PokeQuiz()
         var counter = newQuiz.choices.count
+        for civ in choiceImageViews {
+            civ.userInteractionEnabled = true
+        }
         
         for (index, choice) in enumerate(newQuiz.choices) {
             PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
@@ -87,13 +90,16 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     }
     
     func tapChoice(sender: UITapGestureRecognizer) {
+        for civ in choiceImageViews {
+            civ.userInteractionEnabled = false
+        }
+        
         if sender.view == self.answerImageView {
             updateScore()
         } else {
             sender.view?.alpha = 0.5
         }
         stopTimer()
-        revealAnswer()
     }
     
     func revealAnswer() {
@@ -130,13 +136,14 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     func tick() {
         timeRemaining -= 0.01
         progressView.setProgress(timeRemaining / 15.0, animated: true)
-        if timeRemaining == 0 {
+        if timeRemaining <= 0 {
             stopTimer()
         }
     }
     
     func stopTimer() {
         timer!.invalidate()
+        revealAnswer()
     }
 
 }
