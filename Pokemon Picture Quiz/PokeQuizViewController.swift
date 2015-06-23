@@ -16,12 +16,12 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     @IBOutlet weak var choice3: UIImageView!
     @IBOutlet weak var choice4: UIImageView!
     @IBOutlet weak var pokemonNameLabel: UILabel!
-    @IBOutlet weak var timerLabel: UILabel!
     @IBOutlet weak var scoreLabel: UILabel!
+    @IBOutlet weak var progressView: UIProgressView!
     
     var choiceImageViews = [UIImageView]()
     var timer: NSTimer?
-    var timeRemaining = 0
+    var timeRemaining: Float = 0
     var score = 0
     
     var answerImageView: UIImageView?
@@ -51,6 +51,8 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
             imageView.layer.borderWidth = 1
             imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: "tapChoice:"))
         }
+        progressView.progress = 0
+        
         fetchedResultsController.delegate = self
         
         self.generateQuiz()
@@ -98,7 +100,6 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
         UIView.animateWithDuration(1, animations: {
             for civ in self.choiceImageViews {
                 if civ == self.answerImageView {
-                    civ.transform = CGAffineTransformMakeScale(2, 2)
                     civ.backgroundColor = UIColor.greenColor()
                     civ.backgroundColor = UIColor.whiteColor()
                 } else {
@@ -122,14 +123,13 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     
     func startTimer() {
         timeRemaining = 15
-        timerLabel.text = String(format: "%02d:%02d", 0, timeRemaining)
-        timerLabel.text = "00:\(timeRemaining)"
-        timer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: "tick", userInfo: nil, repeats: true)
+        progressView.progress = 1
+        timer = NSTimer.scheduledTimerWithTimeInterval(0.01, target: self, selector: "tick", userInfo: nil, repeats: true)
     }
     
     func tick() {
-        timeRemaining--
-        timerLabel.text = String(format: "%02d:%02d", 0, timeRemaining)
+        timeRemaining -= 0.01
+        progressView.setProgress(timeRemaining / 15.0, animated: true)
         if timeRemaining == 0 {
             stopTimer()
         }
