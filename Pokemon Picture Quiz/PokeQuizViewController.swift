@@ -21,8 +21,9 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     
     var choiceImageViews = [UIImageView]()
     var timer: NSTimer?
-    var timeRemaining: Float = 0
+    var timeRemaining: Float = 60
     var score = 0
+    var gameRunning = true
     
     var answerImageView: UIImageView?
 
@@ -51,7 +52,7 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
             imageView.layer.borderWidth = 1
             imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: "tapChoice:"))
         }
-        progressView.progress = 0
+        progressView.progress = 1
         
         fetchedResultsController.delegate = self
         
@@ -59,6 +60,7 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     }
     
     func generateQuiz() {
+        gameRunning = true
         var newQuiz = PokeQuiz()
         var counter = newQuiz.choices.count
         for civ in choiceImageViews {
@@ -98,8 +100,8 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
             updateScore()
         } else {
             sender.view?.alpha = 0.5
+            subtractTime()
         }
-        stopTimer()
     }
     
     func revealAnswer() {
@@ -111,10 +113,12 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
                 } else {
                     civ.alpha = 1
                 }
-                civ.transform = CGAffineTransformMakeScale(1, 1)
             }
         }, completion: { (finished) in
-            self.generateQuiz()
+            if self.timeRemaining > 0 && self.gameRunning {
+                self.stopTimer()
+                self.generateQuiz()
+            }
         })
     }
     
@@ -125,25 +129,63 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
             self.scoreLabel.text = "Score: \(self.score)"
             self.scoreLabel.transform = CGAffineTransformMakeScale(1, 1)
         })
+        addTime()
     }
     
     func startTimer() {
-        timeRemaining = 15
-        progressView.progress = 1
         timer = NSTimer.scheduledTimerWithTimeInterval(0.01, target: self, selector: "tick", userInfo: nil, repeats: true)
     }
     
     func tick() {
         timeRemaining -= 0.01
-        progressView.setProgress(timeRemaining / 15.0, animated: true)
+        progressView.setProgress(timeRemaining / 60.0, animated: true)
         if timeRemaining <= 0 {
-            stopTimer()
+            gameOver()
+        }
+    }
+    
+    // Tick() is called manually in add/subtract time to update progress view
+    // revealAnswer stops the timer, preventing update until quiz reloaded
+    func addTime() {
+        if timeRemaining < 60 {
+            timeRemaining += 10
+            if timeRemaining > 60 { timeRemaining = 60 }
+            tick()
+        }
+        revealAnswer()
+    }
+    
+    func subtractTime() {
+        if timeRemaining >= 10.5 { // 10.5 vs 10 to add some buffer for lag and tick call
+            timeRemaining -= 10
+            tick()
+            self.revealAnswer()
+        } else {
+            timeRemaining = 0
+            gameOver()
         }
     }
     
     func stopTimer() {
         timer!.invalidate()
+    }
+    
+    func gameOver() {
+        gameRunning = false
         revealAnswer()
+        stopTimer()
+        score = 0
+        self.scoreLabel.text = "Score: \(self.score)"
+        timeRemaining = 60
+        self.progressView.progress = 1
+        
+        var alert = UIAlertController(title: "Out of time", message: "Game Over!", preferredStyle: UIAlertControllerStyle.Alert)
+        alert.addAction(UIAlertAction(title: "Restart", style: UIAlertActionStyle.Default) { (action) in
+            self.generateQuiz()
+        })
+        NSOperationQueue.mainQueue().addOperationWithBlock {
+            self.presentViewController(alert, animated: true, completion: nil)
+        }
     }
 
 }
