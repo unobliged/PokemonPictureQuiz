@@ -11,11 +11,27 @@ import CoreData
 
 let reuseIdentifier = "PokeCell"
 
-class PokeCollectionViewController: UICollectionViewController {
+class PokeCollectionViewController: UICollectionViewController, NSFetchedResultsControllerDelegate {
 
+    var sharedContext: NSManagedObjectContext {
+        return CoreDataStackManager.sharedInstance().managedObjectContext!
+    }
+    
+    lazy var fetchedResultsController: NSFetchedResultsController = {
+        let fetchRequest = NSFetchRequest(entityName: "Pokemon")
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+        let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest,
+            managedObjectContext: self.sharedContext,
+            sectionNameKeyPath: nil,
+            cacheName: nil)
+        
+        return fetchedResultsController
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        fetchedResultsController.delegate = self
+        
         self.collectionView!.registerClass(UICollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
     }
 

@@ -9,8 +9,9 @@
 import UIKit
 import CoreData
 
-class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelegate {
-    
+class PokeQuizViewController: UIViewController {
+    //TODO: attempt using percentages in storyboard to resolve warnings
+
     @IBOutlet weak var choice1: UIImageView!
     @IBOutlet weak var choice2: UIImageView!
     @IBOutlet weak var choice3: UIImageView!
@@ -21,30 +22,15 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
     
     var choiceImageViews = [UIImageView]()
     var timer: NSTimer?
-    var timeRemaining: Float = 60
+    let maxTime: Float = 30
+    var timeRemaining: Float = 0
     var score = 0
     var gameRunning = true
     
     var answerImageView: UIImageView?
 
-    var sharedContext: NSManagedObjectContext {
-        return CoreDataStackManager.sharedInstance().managedObjectContext!
-    }
-    
-    lazy var fetchedResultsController: NSFetchedResultsController = {
-        let fetchRequest = NSFetchRequest(entityName: "Pokemon")
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-        let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest,
-            managedObjectContext: self.sharedContext,
-            sectionNameKeyPath: nil,
-            cacheName: nil)
-        
-        return fetchedResultsController
-    }()
-    
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.view.backgroundColor = UIColor(red: 71/255, green: 137/255, blue: 186/255, alpha: 1)
         choiceImageViews = [choice1, choice2, choice3, choice4]
         for imageView in choiceImageViews {
             imageView.backgroundColor = UIColor.whiteColor()
@@ -53,8 +39,7 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
             imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: "tapChoice:"))
         }
         progressView.progress = 1
-        
-        fetchedResultsController.delegate = self
+        timeRemaining = maxTime
         
         self.generateQuiz()
     }
@@ -63,9 +48,6 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
         gameRunning = true
         var newQuiz = PokeQuiz()
         var counter = newQuiz.choices.count
-        for civ in choiceImageViews {
-            civ.userInteractionEnabled = true
-        }
         
         for (index, choice) in enumerate(newQuiz.choices) {
             PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
@@ -81,8 +63,17 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
                         dispatch_async(dispatch_get_main_queue()) {
                             self.choiceImageViews[index].image = pokemon.image
                             counter--
+                            /* 
+                                Counter == 0 ensures game only starts when everything
+                                is ready. During testing I also found that click
+                                spamming could lead to CoreData nil insertion due to
+                                generating quiz too quickly
+                            */
                             if counter == 0 {
                                 self.startTimer()
+                                for civ in self.choiceImageViews {
+                                    civ.userInteractionEnabled = true
+                                }
                             }
                         }
                     }
@@ -91,8 +82,23 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
         }
     }
     
+    func startTimer() {
+        timer = NSTimer.scheduledTimerWithTimeInterval(0.01, target: self, selector: "tick", userInfo: nil, repeats: true)
+    }
+    
+    func tick() {
+        if gameRunning {
+            timeRemaining -= 0.01
+            progressView.setProgress(timeRemaining / maxTime, animated: true)
+            if timeRemaining <= 0 {
+                gameOver()
+            }
+        }
+    }
+    
     func tapChoice(sender: UITapGestureRecognizer) {
         for civ in choiceImageViews {
+            // Ensures no doubling of effects with rapid taps
             civ.userInteractionEnabled = false
         }
         
@@ -104,8 +110,44 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
         }
     }
     
+    func updateScore() {
+        score++
+        UIView.animateWithDuration(0.5, animations: {
+            self.scoreLabel.transform = CGAffineTransformMakeScale(3, 3)
+            self.scoreLabel.text = "Score: \(self.score)"
+            self.scoreLabel.transform = CGAffineTransformMakeScale(1, 1)
+        })
+        addTime()
+    }
+    
+    func addTime() {
+        if timeRemaining < maxTime {
+            timeRemaining += 10
+            if timeRemaining > maxTime { timeRemaining = maxTime }
+            progressView.setProgress(timeRemaining / maxTime, animated: true)
+        }
+        revealAnswer()
+    }
+    
+    func subtractTime() {
+        if timeRemaining > 10.1 { // 10.1 to account for minimum tick
+            timeRemaining -= 10
+            progressView.setProgress(timeRemaining / maxTime, animated: true)
+            if timeRemaining >= 0 {
+                self.revealAnswer()
+            }
+        } else {
+            timeRemaining = 0
+            gameOver()
+        }
+    }
+    
+    func stopTimer() {
+        timer!.invalidate()
+    }
+    
     func revealAnswer() {
-        UIView.animateWithDuration(1, animations: {
+        UIView.animateWithDuration(0.5, animations: {
             for civ in self.choiceImageViews {
                 if civ == self.answerImageView {
                     civ.backgroundColor = UIColor.greenColor()
@@ -122,61 +164,13 @@ class PokeQuizViewController: UIViewController, NSFetchedResultsControllerDelega
         })
     }
     
-    func updateScore() {
-        score++
-        UIView.animateWithDuration(0.5, animations: {
-            self.scoreLabel.transform = CGAffineTransformMakeScale(3, 3)
-            self.scoreLabel.text = "Score: \(self.score)"
-            self.scoreLabel.transform = CGAffineTransformMakeScale(1, 1)
-        })
-        addTime()
-    }
-    
-    func startTimer() {
-        timer = NSTimer.scheduledTimerWithTimeInterval(0.01, target: self, selector: "tick", userInfo: nil, repeats: true)
-    }
-    
-    func tick() {
-        timeRemaining -= 0.01
-        progressView.setProgress(timeRemaining / 60.0, animated: true)
-        if timeRemaining <= 0 {
-            gameOver()
-        }
-    }
-    
-    // Tick() is called manually in add/subtract time to update progress view
-    // revealAnswer stops the timer, preventing update until quiz reloaded
-    func addTime() {
-        if timeRemaining < 60 {
-            timeRemaining += 10
-            if timeRemaining > 60 { timeRemaining = 60 }
-            tick()
-        }
-        revealAnswer()
-    }
-    
-    func subtractTime() {
-        if timeRemaining >= 10.5 { // 10.5 vs 10 to add some buffer for lag and tick call
-            timeRemaining -= 10
-            tick()
-            self.revealAnswer()
-        } else {
-            timeRemaining = 0
-            gameOver()
-        }
-    }
-    
-    func stopTimer() {
-        timer!.invalidate()
-    }
-    
     func gameOver() {
         gameRunning = false
         revealAnswer()
         stopTimer()
         score = 0
         self.scoreLabel.text = "Score: \(self.score)"
-        timeRemaining = 60
+        timeRemaining = maxTime
         self.progressView.progress = 1
         
         var alert = UIAlertController(title: "Out of time", message: "Game Over!", preferredStyle: UIAlertControllerStyle.Alert)
