@@ -10,6 +10,8 @@ import UIKit
 import CoreData
 
 class PokeQuizViewController: UIViewController {
+    // TODO: Implement collection
+    // This will involve tinkering with the data model since more data is needed for display
 
     @IBOutlet weak var choice1: UIImageView!
     @IBOutlet weak var choice2: UIImageView!
@@ -27,7 +29,12 @@ class PokeQuizViewController: UIViewController {
     var gameRunning = true
     
     var answerImageView: UIImageView?
-
+    var counter: Int = 0
+    
+    var sharedContext: NSManagedObjectContext {
+        return CoreDataStackManager.sharedInstance().managedObjectContext!
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         choiceImageViews = [choice1, choice2, choice3, choice4]
@@ -43,39 +50,66 @@ class PokeQuizViewController: UIViewController {
         self.generateQuiz()
     }
     
+    func fetchPokemon(id: Int) -> Pokemon? {
+        let fetchRequest = NSFetchRequest(entityName: "Pokemon")
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "id", ascending: true)]
+        let predicate = NSPredicate(format: "id = %d", id)
+        fetchRequest.predicate = predicate
+        
+        let pokeFetch = NSFetchedResultsController(fetchRequest: fetchRequest,
+            managedObjectContext: self.sharedContext,
+            sectionNameKeyPath: nil,
+            cacheName: nil)
+        pokeFetch.performFetch(nil)
+        
+        return pokeFetch.fetchedObjects?.first as? Pokemon
+    }
+    
     func generateQuiz() {
         gameRunning = true
         var newQuiz = PokeQuiz()
-        var counter = newQuiz.choices.count
+        counter = newQuiz.choices.count
         
         for (index, choice) in enumerate(newQuiz.choices) {
-            PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
-                if let name = response["name"] as? String, url = response["imageURL"] as? String {
-                    PokeAPIClient.sharedInstance().savePokemon(choice, name: name, imageURL: url) { (pokemon) in
-                        if pokemon.id == newQuiz.answer {
-                            dispatch_async(dispatch_get_main_queue()) {
-                                self.pokemonNameLabel.text = pokemon.name.capitalizedString + "?"
-                            }
-                            self.answerImageView = self.choiceImageViews[index]
+            if let pokemon = fetchPokemon(choice) {
+                updatePokemonNameLabel(pokemon, answer: newQuiz.answer, index: index)
+                updateChoiceImageViews(pokemon, index: index)
+            } else {
+                PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
+                    if let name = response["name"] as? String, url = response["imageURL"] as? String {
+                        PokeAPIClient.sharedInstance().savePokemon(choice, name: name, imageURL: url) { (pokemon) in
+                            self.updatePokemonNameLabel(pokemon, answer: newQuiz.answer, index: index)
+                            self.updateChoiceImageViews(pokemon, index: index)
                         }
-                        
-                        dispatch_async(dispatch_get_main_queue()) {
-                            self.choiceImageViews[index].image = pokemon.image
-                            counter--
-                            /* 
-                                Counter == 0 ensures game only starts when everything
-                                is ready. During testing I also found that click
-                                spamming could lead to CoreData nil insertion due to
-                                generating quiz too quickly
-                            */
-                            if counter == 0 {
-                                self.startTimer()
-                                for civ in self.choiceImageViews {
-                                    civ.userInteractionEnabled = true
-                                }
-                            }
-                        }
+                    } else {
+                        println("problem with getting pokemon from API: \(response)")
+                        // I tested with rapid spamming ~100 games; generating new quiz
+                        // barely affects flow of game and is not noticeable
+                        self.generateQuiz()
                     }
+                }
+            }
+        }
+    }
+    
+    func updatePokemonNameLabel(pokemon: Pokemon, answer: Int, index: Int) {
+        if pokemon.id == answer {
+            dispatch_async(dispatch_get_main_queue()) {
+                self.pokemonNameLabel.text = pokemon.name.capitalizedString + "?"
+            }
+            self.answerImageView = self.choiceImageViews[index]
+        }
+    }
+    
+    func updateChoiceImageViews(pokemon: Pokemon, index: Int) {
+        dispatch_async(dispatch_get_main_queue()) {
+            self.choiceImageViews[index].image = pokemon.image
+            self.counter--
+            
+            if self.counter == 0 {
+                self.startTimer()
+                for civ in self.choiceImageViews {
+                    civ.userInteractionEnabled = true
                 }
             }
         }
@@ -87,7 +121,9 @@ class PokeQuizViewController: UIViewController {
     
     func tick() {
         if gameRunning {
-            timeRemaining -= 0.01
+            // Time Remaining effectively halves at score: 50
+            // User testing (ss:~5) indicated boredom around 50-75 and higher failure with double tick speed
+            timeRemaining -= (Float(score) / 50 + 1) * 0.01
             progressView.setProgress(timeRemaining / maxTime, animated: true)
             if timeRemaining <= 0 {
                 gameOver()
@@ -121,7 +157,7 @@ class PokeQuizViewController: UIViewController {
     
     func addTime() {
         if timeRemaining < maxTime {
-            timeRemaining += 10
+            timeRemaining += 10 // As effective time remaining decreases, this becomes a better benefit
             if timeRemaining > maxTime { timeRemaining = maxTime }
             progressView.setProgress(timeRemaining / maxTime, animated: true)
         }
@@ -129,8 +165,8 @@ class PokeQuizViewController: UIViewController {
     }
     
     func subtractTime() {
-        if timeRemaining > 10.1 { // 10.1 to account for minimum tick
-            timeRemaining -= 10
+        if timeRemaining > 1.1 { // 1.1 to account for minimum tick
+            timeRemaining -= 1 // As effective time remaining decreases, this becomes a larger penalty
             progressView.setProgress(timeRemaining / maxTime, animated: true)
             if timeRemaining >= 0 {
                 self.revealAnswer()
@@ -167,13 +203,14 @@ class PokeQuizViewController: UIViewController {
         gameRunning = false
         revealAnswer()
         stopTimer()
-        score = 0
-        self.scoreLabel.text = "Score: \(self.score)"
         timeRemaining = maxTime
         self.progressView.progress = 1
         
         var alert = UIAlertController(title: "Out of time", message: "Game Over!", preferredStyle: UIAlertControllerStyle.Alert)
         alert.addAction(UIAlertAction(title: "Restart", style: UIAlertActionStyle.Default) { (action) in
+            // Score is reset here so user can see their gameover score before starting new game
+            self.score = 0
+            self.scoreLabel.text = "Score: \(self.score)"
             self.generateQuiz()
         })
         NSOperationQueue.mainQueue().addOperationWithBlock {
