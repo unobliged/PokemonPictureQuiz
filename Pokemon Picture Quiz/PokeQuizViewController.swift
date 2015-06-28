@@ -10,7 +10,6 @@ import UIKit
 import CoreData
 
 class PokeQuizViewController: UIViewController {
-    //TODO: attempt using percentages in storyboard to resolve warnings
 
     @IBOutlet weak var choice1: UIImageView!
     @IBOutlet weak var choice2: UIImageView!
