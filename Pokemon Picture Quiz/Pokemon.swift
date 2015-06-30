@@ -18,6 +18,15 @@ class Pokemon: NSManagedObject {
     @NSManaged var imageURL: String
     @NSManaged var imagePath: String
     @NSManaged var name: String
+    @NSManaged var hp: Int
+    @NSManaged var attack: Int
+    @NSManaged var defense: Int
+    @NSManaged var spatk: Int
+    @NSManaged var spdef: Int
+    @NSManaged var speed: Int
+    @NSManaged var abilities: String
+    @NSManaged var types: String
+    @NSManaged var evolutions: String
     
     var image: UIImage? {
         get {

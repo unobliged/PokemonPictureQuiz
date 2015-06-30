@@ -11,15 +11,17 @@ import CoreData
 
 let reuseIdentifier = "PokeCell"
 
-class PokeCollectionViewController: UICollectionViewController, NSFetchedResultsControllerDelegate {
-
+class PokeCollectionViewController: UICollectionViewController, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
+    
+    var selectedPokemon: Pokemon?
+    
     var sharedContext: NSManagedObjectContext {
         return CoreDataStackManager.sharedInstance().managedObjectContext!
     }
     
     lazy var fetchedResultsController: NSFetchedResultsController = {
         let fetchRequest = NSFetchRequest(entityName: "Pokemon")
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "id", ascending: true)]
         let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest,
             managedObjectContext: self.sharedContext,
             sectionNameKeyPath: nil,
@@ -30,9 +32,11 @@ class PokeCollectionViewController: UICollectionViewController, NSFetchedResults
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        fetchedResultsController.delegate = self
         
-        self.collectionView!.registerClass(UICollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
+        self.collectionView!.registerClass(PokeCollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
+        fetchedResultsController.delegate = self
+        fetchedResultsController.performFetch(nil)
+        
     }
 
     // MARK: UICollectionViewDataSource
@@ -43,44 +47,80 @@ class PokeCollectionViewController: UICollectionViewController, NSFetchedResults
 
 
     override func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 1
+        if fetchedResultsController.fetchedObjects!.isEmpty {
+            return 1
+        }
+        
+       return fetchedResultsController.fetchedObjects!.count
     }
 
     override func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCellWithReuseIdentifier(reuseIdentifier, forIndexPath: indexPath) as! UICollectionViewCell
-    
+        let cell = collectionView.dequeueReusableCellWithReuseIdentifier(reuseIdentifier, forIndexPath: indexPath) as! PokeCollectionViewCell
+        
+        // Handles scenario where no images found
+        if fetchedResultsController.fetchedObjects!.isEmpty {
+            cell.label.text = "No Images"
+            cell.pokeImageView.image = UIImage()
+            return cell
+        }
+        
+        let pokemon = fetchedResultsController.objectAtIndexPath(indexPath) as! Pokemon
+        if pokemon.image != nil {
+            cell.pokeImageView.image = pokemon.image
+        } else {
+            cell.label.text = "Loading..."
+            PokeAPIClient.sharedInstance().getPokemonImage(pokemon.imageURL) { (response) in
+                if let data = response {
+                    if let pokeImage = UIImage(data: data) {
+                        pokemon.image = pokeImage
+                        dispatch_async(dispatch_get_main_queue()) {
+                            cell.label.text = ""
+                            cell.pokeImageView.image = pokeImage
+                        }
+                    }
+                }
+            }
+        }
+        
         return cell
+    }
+    
+    override func collectionView(collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, atIndexPath indexPath: NSIndexPath) -> UICollectionReusableView {
+        if kind == UICollectionElementKindSectionHeader {
+            let header = collectionView.dequeueReusableSupplementaryViewOfKind(kind, withReuseIdentifier: "PokeHeader", forIndexPath: indexPath) as! UICollectionReusableView
+            
+            let headerLabel = UILabel(frame: CGRectMake((header.frame.size.width - 230) / 2, (header.frame.size.height - 21) / 2, 230, 21))
+            headerLabel.textAlignment = NSTextAlignment.Center
+            if let pokemonCount = fetchedResultsController.fetchedObjects?.count {
+                let headerLabelText = "Pokemon Collection: \(pokemonCount)/718"
+                headerLabel.text = headerLabelText
+            } else {
+                headerLabel.text = "Pokemon Collection"
+            }
+            headerLabel.textColor = UIColor.whiteColor()
+            header.addSubview(headerLabel)
+            
+            return header
+        } else {
+            return UICollectionReusableView()
+        }
     }
 
     // MARK: UICollectionViewDelegate
 
-    /*
-    // Uncomment this method to specify if the specified item should be highlighted during tracking
-    override func collectionView(collectionView: UICollectionView, shouldHighlightItemAtIndexPath indexPath: NSIndexPath) -> Bool {
-        return true
-    }
-    */
-
-    /*
-    // Uncomment this method to specify if the specified item should be selected
     override func collectionView(collectionView: UICollectionView, shouldSelectItemAtIndexPath indexPath: NSIndexPath) -> Bool {
+        selectedPokemon = (fetchedResultsController.objectAtIndexPath(indexPath) as! Pokemon)
+        performSegueWithIdentifier("detailSegue", sender: self)
+        
         return true
     }
-    */
-
-    /*
-    // Uncomment these methods to specify if an action menu should be displayed for the specified item, and react to actions performed on the item
-    override func collectionView(collectionView: UICollectionView, shouldShowMenuForItemAtIndexPath indexPath: NSIndexPath) -> Bool {
-        return false
-    }
-
-    override func collectionView(collectionView: UICollectionView, canPerformAction action: Selector, forItemAtIndexPath indexPath: NSIndexPath, withSender sender: AnyObject?) -> Bool {
-        return false
-    }
-
-    override func collectionView(collectionView: UICollectionView, performAction action: Selector, forItemAtIndexPath indexPath: NSIndexPath, withSender sender: AnyObject?) {
     
+    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+        if segue.identifier == "detailSegue" {
+            let vc = segue.destinationViewController as! UINavigationController
+            let pdvc = vc.childViewControllers[0] as! PokeDetailViewController
+            pdvc.selectedPokemon = selectedPokemon
+        }
     }
-    */
 
 }

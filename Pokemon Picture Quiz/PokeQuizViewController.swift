@@ -10,8 +10,7 @@ import UIKit
 import CoreData
 
 class PokeQuizViewController: UIViewController {
-    // TODO: Implement collection
-    // This will involve tinkering with the data model since more data is needed for display
+    //TODO: 
 
     @IBOutlet weak var choice1: UIImageView!
     @IBOutlet weak var choice2: UIImageView!
@@ -75,6 +74,7 @@ class PokeQuizViewController: UIViewController {
                 updatePokemonNameLabel(pokemon, answer: newQuiz.answer, index: index)
                 updateChoiceImageViews(pokemon, index: index)
             } else {
+                self.pokemonNameLabel.text = "Loading..."
                 PokeAPIClient.sharedInstance().getPokemon(choice) { (response) in
                     if let name = response["name"] as? String, url = response["imageURL"] as? String {
                         PokeAPIClient.sharedInstance().savePokemon(choice, name: name, imageURL: url) { (pokemon) in
@@ -83,8 +83,8 @@ class PokeQuizViewController: UIViewController {
                         }
                     } else {
                         println("problem with getting pokemon from API: \(response)")
-                        // I tested with rapid spamming ~100 games; generating new quiz
-                        // barely affects flow of game and is not noticeable
+                        // I tested with rapid spamming ~50 games; generating new quiz
+                        // barely affected flow of game and was not noticeable
                         self.generateQuiz()
                     }
                 }
@@ -120,7 +120,7 @@ class PokeQuizViewController: UIViewController {
     }
     
     func tick() {
-        if gameRunning {
+        if gameRunning && self.tabBarController?.selectedIndex == 0 {
             // Time Remaining effectively halves at score: 50
             // User testing (ss:~5) indicated boredom around 50-75 and higher failure with double tick speed
             timeRemaining -= (Float(score) / 50 + 1) * 0.01
