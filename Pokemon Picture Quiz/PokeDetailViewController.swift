@@ -39,10 +39,8 @@ class PokeDetailViewController: UIViewController {
     
     func getPokemonDetails() {
         PokeAPIClient.sharedInstance().getPokemonStats(selectedPokemon.id) { (response) in
-            println(response)
             if !self.checkForError(response) {
                 PokeAPIClient.sharedInstance().savePokemonStats(self.selectedPokemon, stats: response) {
-                    println(self.selectedPokemon)
                     self.displayPokemonDetails()
                 }
             }
@@ -51,12 +49,20 @@ class PokeDetailViewController: UIViewController {
     
     func displayPokemonDetails() {
         NSOperationQueue.mainQueue().addOperationWithBlock {
-            self.hpLabel.setTitle("\(self.selectedPokemon.hp)\nHP", forState: UIControlState.Normal)
-            self.spdLabel.setTitle("\(self.selectedPokemon.speed)\nSPD", forState: UIControlState.Normal)
-            self.atkLabel.setTitle("\(self.selectedPokemon.attack)\nATK", forState: UIControlState.Normal)
-            self.defLabel.setTitle("\(self.selectedPokemon.defense)\nDEF", forState: UIControlState.Normal)
-            self.spatkLabel.setTitle("\(self.selectedPokemon.spatk)\nSP.ATK", forState: UIControlState.Normal)
-            self.spdefLabel.setTitle("\(self.selectedPokemon.spdef)\nSP.DEF", forState: UIControlState.Normal)
+            self.hpLabel.setTitle("HP\n\(self.selectedPokemon.hp)", forState: UIControlState.Normal)
+            self.spdLabel.setTitle("SPD\n\(self.selectedPokemon.speed)", forState: UIControlState.Normal)
+            self.atkLabel.setTitle("ATK\n\(self.selectedPokemon.attack)", forState: UIControlState.Normal)
+            self.defLabel.setTitle("DEF\n\(self.selectedPokemon.defense)", forState: UIControlState.Normal)
+            self.spatkLabel.setTitle("SP.ATK\n\(self.selectedPokemon.spatk)", forState: UIControlState.Normal)
+            self.spdefLabel.setTitle("SP.DEF\n\(self.selectedPokemon.spdef)", forState: UIControlState.Normal)
+            self.abilitiesLabel.setTitle("Abilities:\n\(self.selectedPokemon.abilities)", forState: UIControlState.Normal)
+            self.typesLabel.setTitle("Types:\n\(self.selectedPokemon.types)", forState: UIControlState.Normal)
+            
+            if self.selectedPokemon.evolutions == "" {
+                self.evolutionsLabel.setTitle("Evolutions:\nNone", forState: UIControlState.Normal)
+            } else {
+                self.evolutionsLabel.setTitle("Evolutions:\n\(self.selectedPokemon.evolutions)", forState: UIControlState.Normal)
+            }
         }
     }
     

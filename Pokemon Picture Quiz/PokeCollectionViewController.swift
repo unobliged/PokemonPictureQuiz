@@ -89,7 +89,7 @@ class PokeCollectionViewController: UICollectionViewController, UICollectionView
         if kind == UICollectionElementKindSectionHeader {
             let header = collectionView.dequeueReusableSupplementaryViewOfKind(kind, withReuseIdentifier: "PokeHeader", forIndexPath: indexPath) as! UICollectionReusableView
             
-            let headerLabel = UILabel(frame: CGRectMake((header.frame.size.width - 230) / 2, (header.frame.size.height - 21) / 2, 230, 21))
+            let headerLabel = UILabel(frame: CGRectMake((header.frame.size.width - 230) / 2, 21, 230, 21))
             headerLabel.textAlignment = NSTextAlignment.Center
             if let pokemonCount = fetchedResultsController.fetchedObjects?.count {
                 let headerLabelText = "Pokemon Collection: \(pokemonCount)/718"

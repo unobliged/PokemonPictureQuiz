@@ -10,7 +10,6 @@ import UIKit
 import CoreData
 
 class PokeQuizViewController: UIViewController {
-    //TODO: 
 
     @IBOutlet weak var choice1: UIImageView!
     @IBOutlet weak var choice2: UIImageView!
