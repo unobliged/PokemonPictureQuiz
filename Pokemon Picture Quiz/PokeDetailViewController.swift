@@ -30,6 +30,8 @@ class PokeDetailViewController: UIViewController {
         pokemonImageView.image = selectedPokemon.image
         pokemonNameLabel.text = selectedPokemon.name.capitalizedString
         
+        // Technically some pokemon have a default hp of 0
+        // For most though, this is a quick check to see if it's in core data
         if selectedPokemon.hp == 0 {
             getPokemonDetails()
         } else {

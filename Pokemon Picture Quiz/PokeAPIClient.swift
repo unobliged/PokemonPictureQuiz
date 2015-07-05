@@ -31,7 +31,6 @@ class PokeAPIClient {
                 completionHandler(response: ["status": "???", "statusError": "network error"])
                 return
             }
-//            println(NSString(data: data, encoding: NSUTF8StringEncoding))
             
             PokeAPIClient.parseJSONWithCompletionHandler(data, completionHandler: { (data, error) in
                 if error != nil {
@@ -139,7 +138,6 @@ class PokeAPIClient {
                 completionHandler(response: ["status": "???", "statusError": "network error"])
                 return
             }
-//            println(NSString(data: data, encoding: NSUTF8StringEncoding))
     
             PokeAPIClient.parseJSONWithCompletionHandler(data, completionHandler: { (data, error) in
                 if error != nil {

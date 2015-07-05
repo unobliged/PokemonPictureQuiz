@@ -36,7 +36,6 @@ class PokeCollectionViewController: UICollectionViewController, UICollectionView
         self.collectionView!.registerClass(PokeCollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
         fetchedResultsController.delegate = self
         fetchedResultsController.performFetch(nil)
-        
     }
 
     // MARK: UICollectionViewDataSource
